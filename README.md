@@ -12,8 +12,7 @@ This is a prototype code that has not been developed for distribution.
 
 For each algorithm covered there is an executable and the source as well.
 
-Finding folder:
- * BNF: [Benedek et al. (2018) - Finding and verifying the nucleolus of cooperative games](forthcoming)
+ * BNF: Benedek et al. (2018) - Finding and verifying the nucleolus of cooperative games (forthcoming)
  * DK: [Derks and Kuipers (1997) - Implementing the simplex method for computing the prenucleolus of transferable utility games](https://www.researchgate.net/publication/265080719)
  * SP: the primal sequence of [Solymosi (1993) - On computing the nucleolus of cooperative games](https://www.researchgate.net/publication/318017147)
  * SD: the dual sequence of [Solymosi (1993) - On computing the nucleolus of cooperative games](https://www.researchgate.net/publication/318017147)
@@ -22,7 +21,6 @@ Finding folder:
 
 All executables are obtained by compiling the corresponding source (see below) using Microsoft Visual Studio Enterprise 2015 (version 14.0.25431.01 Update 3) on OS Microsoft Windows 10 Enterprise (version 10.0.17134 Build 17134). NOTE THAT ALL EXECUTABLES ARE USING CPLEX (version 12.7.0)
 
-Finding:
  * BNF.exe
  * DK.exe
  * SP.exe
@@ -30,7 +28,7 @@ Finding:
 
 ### Sources
 
-Finding: each of the codes below requires common.cpp, common.h, gen_game.cpp and gen_game.h
+Each of the codes below requires common.cpp, common.h, gen_game.cpp and gen_game.h
  * BNF.cpp, BNF.h
  * DK.cpp, DK. h
  * SP.cpp, SP. h
@@ -87,8 +85,8 @@ For each algorithm covered there is an executable and the source as well.
 
 Verifying folder:
  * Kohlberg: based on the original Kohlberg criterion based on [Kohlberg (1971) - On the nucleolus of a characteristic function game](https://epubs.siam.org/doi/pdf/10.1137/0120009)
- * SKA: simplified Kohlberg algorithm from [Benedek et al. (2018) - Finding and verifying the nucleolus of cooperative games]()
- * SKAcr: simplified Kohlberg algorithm with compact representation from [Benedek et al. (2018) - Finding and verifying the nucleolus of cooperative games]()
+ * SKA: simplified Kohlberg algorithm from Benedek et al. (2018) - Finding and verifying the nucleolus of cooperative games (forthcoming)
+ * SKAcr: simplified Kohlberg algorithm with compact representation from Benedek et al. (2018) - Finding and verifying the nucleolus of cooperative games (forthcoming)
 
 ### Executables
 
