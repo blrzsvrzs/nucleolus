@@ -1,0 +1,7 @@
+#include "common.h"
+
+void Kohlberg(vector<double> &excess, double &prec, unsigned int &s, vector<bool> &unsettled, vector<vector<bool>> &A, unsigned short int &n, bool &disp, unsigned int &sr, double &t, bool &z, unsigned int &iter, unsigned short int &t2_size, vector<unsigned int> &T2_coord, vector<vector<bool>> &Atight2, double &t1);
+void Kohlberg_mem(vector<double> &excess, double &prec, unsigned int &s, vector<bool> &unsettled, vector<bool> &a, unsigned short int &n, bool &disp, unsigned int &sr, double &t, bool &z, unsigned int &iter, unsigned short int &t2_size, vector<unsigned int> &T2_coord, vector<vector<bool>> &Atight2, double &t1);
+void bal_upd(unsigned int &t_size, unsigned short int &t2_size, unsigned int &sumt, IloNumVarArray &lambda, vector<bool> &U, vector<vector<double>> &Arref, vector<bool> &J, vector<vector<bool>> &Atight, unsigned int &i, IloExpr &obj, IloCplex &sr, double &prec, unsigned short int &n, bool &disp, unsigned short int &rank);
+void balanced(unsigned int &t_size, unsigned short int &t2_size, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, unsigned int &sr_count, vector<vector<double>> Arref, vector<bool> J, vector<bool> &U, unsigned short int &n, double &prec, bool &disp);
+void rowechform_subr(vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &b, unsigned short int &n);
