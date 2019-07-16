@@ -7,7 +7,7 @@
 *             https://www.researchgate.net/publication/318017147
 *
 *    @author Marton Benedek
-*    @version 1.0 18/12/2018
+*    @version 1.1 16/07/2019
 *
 *    This program is free software: you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -33,10 +33,11 @@ int main() {
 	unsigned int seed = 0;
 	bool disp = false;
 	bool memo = false;
+	bool nlsu = false;
 	ifstream inp;
 	cout << "Reading the input...";
 	inp.open("input.txt");
-	inp >> n >> type >> seed >> disp >> memo;
+	inp >> n >> type >> seed >> disp >> memo >> nlsu;
 	inp.close();
 	cout << "done!" << endl;
 	if (seed == 0)
@@ -58,9 +59,9 @@ int main() {
 		cout << "done!" << endl;
 		cout << "Running SP..." << endl;
 		if (memo)
-			SP_sg_mem(disp, n, v, iter, piv, sr, t, x, s);
+			SP_sg_mem(disp, n, v, iter, piv, sr, t, x, s, nlsu);
 		else
-			SP_sg(disp, n, v, iter, piv, sr, t, x, s);
+			SP_sg(disp, n, v, iter, piv, sr, t, x, s, nlsu);
 	}
 	else {
 		vector<double> v(s + 1, 0);
@@ -84,9 +85,9 @@ int main() {
 		}
 		cout << "Running SP..." << endl;
 		if (memo)
-			SP_mem(disp, n, v, iter, piv, sr, t, x, s);
+			SP_mem(disp, n, v, iter, piv, sr, t, x, s, nlsu);
 		else
-			SP(disp, n, v, iter, piv, sr, t, x, s);
+			SP(disp, n, v, iter, piv, sr, t, x, s, nlsu);
 	}
 	ofstream res;
 	res.open("results.txt", ofstream::out | ofstream::trunc);
@@ -101,7 +102,7 @@ int main() {
 	return 0;
 }
 
-void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s) {
+void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s, bool &nlsu) {
 	double prec = pow(10, -6);
 	vector<bool> unsettled(s + 1, true);
 	unsettled[s] = false;
@@ -109,8 +110,13 @@ void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int
 	vector<vector<bool>> A(s + 1, vector<bool>(n, false));
 	A_mx(A, n, s);
 	vector<double> singleton_bounds(n, 0);
-	for (unsigned short int i = 0; i < n; i++)
+	double impu = 0;
+	for (unsigned short int i = 0; i < n; i++){
 		singleton_bounds[i] = v[pow(2, i) - 1];
+		impu += singleton_bounds[i]
+	}
+	for (unsigned short int i = 0; i < n; i++)
+		x[i] += (v[s] - impu) / n;
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -154,6 +160,11 @@ void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE FIRST LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val,NULL,X,NULL,NULL,NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -172,7 +183,7 @@ void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int
 	}
 	double xS;
 	while (rank < n)
-		iteration(unsettled, s, xS, n, A, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds);
+		iteration(unsettled, s, xS, n, A, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds, nlsu);
 	t = cpuTime() - t1;
 	cout << "SP finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
@@ -184,7 +195,7 @@ void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int
 	cout << "Subroutine solves needed: " << sr << endl;
 }
 
-void iteration(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<double> &singleton_bounds) {
+void iteration(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<double> &singleton_bounds, bool &nlsu) {
 	IloEnv env;
 	IloModel model(env);
 	IloNumVarArray X(env, n + 1, -IloInfinity, IloInfinity);
@@ -247,11 +258,13 @@ void iteration(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned sh
 		return;
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	for (unsigned int i = 0; i < s; i++) {
-		if (unsettled[i]) {
-			if (!(binrank(Arref, J, A[i], n))) {
-				unsettled[i] = false;
-				unsettled[s - 1 - i] = false;
+	if (!nlsu) {
+		for (unsigned int i = 0; i < s; i++) {
+			if (unsettled[i]) {
+				if (!(binrank(Arref, J, A[i], n))) {
+					unsettled[i] = false;
+					unsettled[s - 1 - i] = false;
+				}
 			}
 		}
 	}
@@ -300,6 +313,11 @@ void iteration(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned sh
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE " << iter + 1 << "-TH LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -318,7 +336,7 @@ void iteration(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned sh
 	}
 }
 
-void SP_sg(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s) {
+void SP_sg(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s, bool &nlsu) {
 	double prec = pow(10, -6);
 	vector<bool> unsettled(s + 1, true);
 	unsettled[s] = false;
@@ -326,8 +344,13 @@ void SP_sg(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short in
 	vector<vector<bool>> A(s + 1, vector<bool>(n, false));
 	A_mx(A, n, s);
 	vector<bool> singleton_bounds(n, 0);
-	for (unsigned short int i = 0; i < n; i++)
+	double impu = 0;
+	for (unsigned short int i = 0; i < n; i++){
 		singleton_bounds[i] = v[pow(2, i) - 1];
+		impu += singleton_bounds[i];
+	}
+	for (unsigned short int i = 0; i < n; i++)
+		x[i] += (v[s] - impu) / n;
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -371,6 +394,11 @@ void SP_sg(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short in
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE FIRST LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -389,7 +417,7 @@ void SP_sg(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short in
 	}
 	double xS;
 	while (rank < n)
-		iteration_sg(unsettled, s, xS, n, A, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds);
+		iteration_sg(unsettled, s, xS, n, A, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds, nlsu);
 	t = cpuTime() - t1;
 	cout << "SP finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
@@ -401,7 +429,7 @@ void SP_sg(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short in
 	cout << "Subroutine solves needed: " << sr << endl;
 }
 
-void iteration_sg(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<bool> &singleton_bounds) {
+void iteration_sg(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<bool> &singleton_bounds, bool &nlsu) {
 	IloEnv env;
 	IloModel model(env);
 	IloNumVarArray X(env, n + 1, -IloInfinity, IloInfinity);
@@ -464,11 +492,13 @@ void iteration_sg(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned
 		return;
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	for (unsigned int i = 0; i < s; i++) {
-		if (unsettled[i]) {
-			if (!(binrank(Arref, J, A[i], n))) {
-				unsettled[i] = false;
-				unsettled[s - 1 - i] = false;
+	if (!nlsu) {
+		for (unsigned int i = 0; i < s; i++) {
+			if (unsettled[i]) {
+				if (!(binrank(Arref, J, A[i], n))) {
+					unsettled[i] = false;
+					unsettled[s - 1 - i] = false;
+				}
 			}
 		}
 	}
@@ -517,6 +547,11 @@ void iteration_sg(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE " << iter + 1 << "-TH LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -535,15 +570,20 @@ void iteration_sg(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned
 	}
 }
 
-void SP_mem(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s) {
+void SP_mem(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s, bool &nlsu) {
 	double prec = pow(10, -6);
 	vector<bool> unsettled(s + 1, true);
 	unsettled[s] = false;
 	double t1 = cpuTime();
 	vector<bool> a(n, false);
 	vector<double> singleton_bounds(n, 0);
-	for (unsigned short int i = 0; i < n; i++)
+	double impu = 0;
+	for (unsigned short int i = 0; i < n; i++){
 		singleton_bounds[i] = v[pow(2, i) - 1];
+		impu += singleton_bounds[i];
+	}
+	for (unsigned short int i = 0; i < n; i++)
+		x[i] += (v[s] - impu) / n;
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -588,6 +628,11 @@ void SP_mem(bool &disp, unsigned short int &n, vector<double> &v, unsigned short
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE FIRST LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -606,7 +651,7 @@ void SP_mem(bool &disp, unsigned short int &n, vector<double> &v, unsigned short
 	}
 	double xS;
 	while (rank < n)
-		iteration_mem(unsettled, s, xS, n, a, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds);
+		iteration_mem(unsettled, s, xS, n, a, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds, nlsu);
 	t = cpuTime() - t1;
 	cout << "SP finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
@@ -618,7 +663,7 @@ void SP_mem(bool &disp, unsigned short int &n, vector<double> &v, unsigned short
 	cout << "Subroutine solves needed: " << sr << endl;
 }
 
-void iteration_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<double> &singleton_bounds) {
+void iteration_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<double> &singleton_bounds, bool &nlsu) {
 	IloEnv env;
 	IloModel model(env);
 	IloNumVarArray X(env, n + 1, -IloInfinity, IloInfinity);
@@ -682,12 +727,14 @@ void iteration_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigne
 		return;
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	for (unsigned int i = 0; i < s; i++) {
-		if (unsettled[i]) {
-			de2bi(i, a, n);
-			if (!(binrank(Arref, J, a, n))) {
-				unsettled[i] = false;
-				unsettled[s - 1 - i] = false;
+	if (!nlsu) {
+		for (unsigned int i = 0; i < s; i++) {
+			if (unsettled[i]) {
+				de2bi(i, a, n);
+				if (!(binrank(Arref, J, a, n))) {
+					unsettled[i] = false;
+					unsettled[s - 1 - i] = false;
+				}
 			}
 		}
 	}
@@ -737,6 +784,11 @@ void iteration_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigne
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE " << iter + 1 << "-TH LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -756,15 +808,20 @@ void iteration_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigne
 	}
 }
 
-void SP_sg_mem(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s) {
+void SP_sg_mem(bool &disp, unsigned short int &n, vector<bool> &v, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, unsigned int &s, bool &nlsu) {
 	double prec = pow(10, -6);
 	vector<bool> unsettled(s + 1, true);
 	unsettled[s] = false;
 	double t1 = cpuTime();
 	vector<bool> a(n, false);
 	vector<double> singleton_bounds(n, 0);
-	for (unsigned short int i = 0; i < n; i++)
+	double impu = 0;
+	for (unsigned short int i = 0; i < n; i++){
 		singleton_bounds[i] = v[pow(2, i) - 1];
+		impu += singleton_bounds[i];
+	}
+	for (unsigned short int i = 0; i < n; i++)
+		x[i] += (v[s] - impu) / n;
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -809,6 +866,11 @@ void SP_sg_mem(bool &disp, unsigned short int &n, vector<bool> &v, unsigned shor
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE FIRST LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
@@ -827,7 +889,7 @@ void SP_sg_mem(bool &disp, unsigned short int &n, vector<bool> &v, unsigned shor
 	}
 	double xS;
 	while (rank < n)
-		iteration_sg_mem(unsettled, s, xS, n, a, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds);
+		iteration_sg_mem(unsettled, s, xS, n, a, x, v, epsi, prec, Arref, J, rank, disp, Asettled, sett, settled_values, iter, piv, sr, unsettled_p, singleton_bounds, nlsu);
 	t = cpuTime() - t1;
 	cout << "SP finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
@@ -839,7 +901,7 @@ void SP_sg_mem(bool &disp, unsigned short int &n, vector<bool> &v, unsigned shor
 	cout << "Subroutine solves needed: " << sr << endl;
 }
 
-void iteration_sg_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<double> &singleton_bounds) {
+void iteration_sg_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sett, vector<double> &settled_values, unsigned short int &iter, unsigned int &piv, unsigned int &sr, vector<bool> &unsettled_p, vector<double> &singleton_bounds, bool &nlsu) {
 	IloEnv env;
 	IloModel model(env);
 	IloNumVarArray X(env, n + 1, -IloInfinity, IloInfinity);
@@ -903,12 +965,14 @@ void iteration_sg_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsi
 		return;
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	for (unsigned int i = 0; i < s; i++) {
-		if (unsettled[i]) {
-			de2bi(i, a, n);
-			if (!(binrank(Arref, J, a, n))) {
-				unsettled[i] = false;
-				unsettled[s - 1 - i] = false;
+	if (!nlsu) {
+		for (unsigned int i = 0; i < s; i++) {
+			if (unsettled[i]) {
+				de2bi(i, a, n);
+				if (!(binrank(Arref, J, a, n))) {
+					unsettled[i] = false;
+					unsettled[s - 1 - i] = false;
+				}
 			}
 		}
 	}
@@ -958,6 +1022,11 @@ void iteration_sg_mem(vector<bool> &unsettled, unsigned int &s, double &xS, unsi
 		lp.setOut(env.getNullStream());
 	else
 		cout << endl << "   ---===   SOLVING THE " << iter + 1 << "-TH LP   ===---   " << endl << endl;
+	IloNumArray x_val(env, n + 1);
+	for (unsigned short int i = 0; i < n; i++)
+		x_val[i] = x[i];
+	x_val[n] = epsi;
+	lp.setStart(x_val, NULL, X, NULL, NULL, NULL);
 	lp.solve();
 	piv += lp.getNiterations();
 	iter++;
