@@ -117,8 +117,7 @@ void DP(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &v, u
 	vector<bool>J(n, true);
 	J[0] = false;
 	unsigned short int rank = 1;
-	vector<unsigned int> settled(n, 0);
-	settled[0] = s;
+	vector<vector<bool>> Asettled(n, vector<bool>(n, 0));
 	vector <double> settled_values(n, 0);
 	settled_values[0] = v[s];
 	vector<double> u(s + 1, 0);
@@ -136,6 +135,7 @@ void DP(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &v, u
 	model.add(Lambda[s]);
 	obj = v[s] * Lambda[s];
 	for (unsigned short int i = 0; i < n; i++) {
+		Asettled[0][i] = true;
 		IloExpr eq(env);
 		model.add(Lambda_impu[i]);
 		obj += v[pow(2, i) - 1] * Lambda_impu[i];
@@ -152,7 +152,7 @@ void DP(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &v, u
 		eq += Lambda[s];
 		bal_eq[i] = eq;
 		balanced[i] = (bal_eq[i] == 0);
-		
+
 	}
 	model.add(balanced);
 	IloConstraint pos = (pos_eq == 1);
@@ -195,20 +195,20 @@ void DP(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &v, u
 	}
 	double xS = 0;
 	while (rank < n)
-		iteration(unsettled, settled, s, n, A, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
+		iteration(unsettled, Asettled, s, n, A, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
 	env.end();
-	if (disp) {
-		cout << "Settled coalitions:" << endl;
-		for (unsigned short int i = 0; i < n; i++)
-			cout << settled[i] + 1 << " at " << settled_values[i] << endl;
-	}
+	//if (disp) {
+	//	cout << "Settled coalitions:" << endl;
+	//	for (unsigned short int i = 0; i < n; i++)
+	//		cout << settled[i] + 1 << " at " << settled_values[i] << endl;
+	//}
 	IloEnv sol_env;
 	IloModel sol_model(sol_env);
 	IloNumVarArray X(sol_env, n, -IloInfinity, IloInfinity);
 	for (unsigned short int i = 0; i < n; i++) {
 		IloExpr p(sol_env);
 		for (unsigned short int j = 0; j < n; j++) {
-			if (A[settled[i]][j])
+			if (Asettled[i][j])
 				p += X[j];
 		}
 		IloConstraint q = (p == settled_values[i]);
@@ -234,12 +234,12 @@ void DP(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &v, u
 	cout << "Pivots needed: " << piv << endl;
 }
 
-void iteration(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned int &s, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
+void iteration(vector<bool> &unsettled, vector<vector<bool>> &Asettled, unsigned int &s, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
 	for (unsigned int i = 0; i < s; i++) {
 		if (unsettled[i]) {
 			if (u[i] > prec) {
 				if (binrank(Arref, J, A[i], n)) {
-					settled[rank] = i;
+					Asettled[rank] = A[i];
 					settled_values[rank] = v[i] - epsi;
 					rank++;
 					if (disp)
@@ -267,7 +267,7 @@ void iteration(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned 
 			if (u_impu[i] > prec) {
 				if (binrank(Arref, J, A[pow(2, i) - 1], n)) {
 					unsettled_p[i] = false;
-					settled[rank] = pow(2, i) - 1;
+					Asettled[rank] = A[pow(2, i) - 1];
 					settled_values[rank] = v[pow(2, i) - 1];
 					rank++;
 					if (disp)
@@ -305,7 +305,7 @@ void iteration(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned 
 			}
 		}
 	}
-	
+
 	vector<bool> T(s, false);
 	vector<unsigned int> T_coord(0, 0);
 	unsigned int t_size = 0;
@@ -351,7 +351,7 @@ void iteration(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned 
 		Atight2[i] = A[T2_coord[i]];
 	vector<bool> U(t_size, true);
 	vector<bool> U2(t2_size, true);
-	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, settled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
+	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
 	if (disp) {
 		cout << endl << "   ---===   SUBROUTINE FINISHED   ===---   " << endl << endl;
 		cout << "MIN TIGHT SET FOUND!" << endl;
@@ -363,10 +363,10 @@ void iteration(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned 
 	}
 	if (rank == n)
 		return;
-	
+
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	if (!nlsu){
+	if (!nlsu) {
 		for (unsigned int i = 0; i < s; i++) {
 			if (unsettled[i]) {
 				if (!(binrank(Arref, J, A[i], n))) {
@@ -439,7 +439,7 @@ void iteration(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned 
 	}
 }
 
-void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, vector<vector<double>> &Arref, vector<bool> &J, double &prec, unsigned short int &n, unsigned int &t_size, unsigned short int &t2_size, unsigned short int &rank, bool &disp, vector<unsigned int> &settled, unsigned int &sr, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <double> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, IloExprArray &bal_eq, vector<bool> &unsettled_p) {
+void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, vector<vector<double>> &Arref, vector<bool> &J, double &prec, unsigned short int &n, unsigned int &t_size, unsigned short int &t2_size, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sr, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <double> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, IloExprArray &bal_eq, vector<bool> &unsettled_p) {
 	unsigned int sumt = 0;
 	vector<bool> t(t_size, false);
 	unsigned short int sumt2 = 0;
@@ -461,12 +461,12 @@ void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, v
 		for (unsigned int j = 0; j < t_size; j++) {
 			if (Atight[j][i] == true)
 				eq += lambda[j];
-			if (i == 0){
+			if (i == 0) {
 				sr_pos_eq += lambda[j];
 				sr_obj += lambda[j];
 			}
-			if (j < rank && A[settled[j]][i] == true)
-				p += lambda[j + t_size + t2_size];
+			if (j < rank && Asettled[j][i] == true)
+				eq += lambda[j + t_size + t2_size];
 		}
 		for (unsigned int j = 0; j < t2_size; j++) {
 			if (Atight2[j][i] == true)
@@ -476,7 +476,7 @@ void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, v
 		}
 		if (rank > t_size) {
 			for (unsigned short int j = t_size; j < rank; j++) {
-				if (A[settled[j]][i] == true)
+				if (Asettled[j][i] == true)
 					eq += lambda[j + t_size + t2_size];
 			}
 		}
@@ -505,7 +505,7 @@ void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, v
 	}
 	unsigned int i;
 	while (feas) {
-		subr_upd(Arref, J, i, sr_pos_eq, n, prec, U, U2, sumt, sumt2, t, t2, Atight, Atight2, t_size, t2_size, SR, lambda, rank, disp, settled, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, unsettled_p, sr_bal_eq, lambdi, bal_eq);
+		subr_upd(Arref, J, i, sr_pos_eq, n, prec, U, U2, sumt, sumt2, t, t2, Atight, Atight2, t_size, t2_size, SR, lambda, rank, disp, Asettled, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, unsettled_p, sr_bal_eq, lambdi, bal_eq, sr_obj);
 		if (rank == n)
 			return;
 		else {
@@ -517,7 +517,7 @@ void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, v
 						t[i] = true;
 						sr_pos_eq -= lambda[i];
 						sr_obj -= lambda[i];
-						for (unsigned short int j = 0; j < n; j++){
+						for (unsigned short int j = 0; j < n; j++) {
 							if (Atight[i][j])
 								sr_bal_eq[j] -= lambda[i];
 						}
@@ -578,7 +578,7 @@ void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, v
 	sr_env.end();
 }
 
-void subr_upd(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, IloExpr &sr_pos_eq, unsigned short int &n, double &prec, vector<bool>&U, vector<bool>&U2, unsigned int &sumt, unsigned short int &sumt2, vector<bool> &t, vector<bool> &t2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, unsigned int &t_size, unsigned short int &t2_size, IloCplex &SR, IloNumVarArray &lambda, unsigned short int &rank, bool &disp, vector<unsigned int> &settled, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <double> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, vector<bool> &unsettled_p, IloExprArray &sr_bal_eq, vector<double> &lambdi, IloExprArray &bal_eq) {
+void subr_upd(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, IloExpr &sr_pos_eq, unsigned short int &n, double &prec, vector<bool>&U, vector<bool>&U2, unsigned int &sumt, unsigned short int &sumt2, vector<bool> &t, vector<bool> &t2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, unsigned int &t_size, unsigned short int &t2_size, IloCplex &SR, IloNumVarArray &lambda, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <double> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, vector<bool> &unsettled_p, IloExprArray &sr_bal_eq, vector<double> &lambdi, IloExprArray &bal_eq, IloExpr &sr_obj) {
 	i = 0;
 	while (i < t_size && sumt < t_size) {
 		if (t[i] == false && lambdi[i] > prec) {
@@ -588,7 +588,7 @@ void subr_upd(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, Ilo
 			sr_obj -= lambda[i];
 			sumt++;
 			if (binrank(Arref, J, Atight[i], n)) {
-				settled[rank] = T_coord[i];
+				Asettled[rank] = Atight[i];
 				settled_values[rank] = v[T_coord[i]] - epsi;
 				if (disp)
 					cout << "Rank increased to " << rank + 1 << " with " << T_coord[i] + 1 << " (and " << s - T_coord[i] << ") getting settled." << endl;
@@ -607,7 +607,7 @@ void subr_upd(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, Ilo
 				pos_eq -= Lambda[T_coord[i]];
 			}
 			else {
-				for (unsigned short int j = 0; j < n; j++){
+				for (unsigned short int j = 0; j < n; j++) {
 					if (Atight[i][j])
 						sr_bal_eq[j] -= lambda[i];
 				}
@@ -629,7 +629,7 @@ void subr_upd(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, Ilo
 			sumt2++;
 			sr_obj -= lambda[i + t_size];
 			if (binrank(Arref, J, Atight2[i], n)) {
-				settled[rank] = T2_coord[i];
+				Asettled[rank] = Atight2[i];
 				settled_values[rank] = v[T2_coord[i]];
 				if (disp)
 					cout << "Rank increased to " << rank + 1 << " with " << T2_coord[i] + 1 << " (and " << s - T2_coord[i] << ") getting settled." << endl;
@@ -691,8 +691,7 @@ void DP_sg(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> &v, 
 	vector<bool>J(n, true);
 	J[0] = false;
 	unsigned short int rank = 1;
-	vector<unsigned int> settled(n, 0);
-	settled[0] = s;
+	vector<vector<bool>> Asettled(n, vector<bool>(n, 0));
 	vector <double> settled_values(n, 0);
 	settled_values[0] = v[s];
 	vector<double> u(s + 1, 0);
@@ -710,6 +709,7 @@ void DP_sg(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> &v, 
 	model.add(Lambda[s]);
 	obj = v[s] * Lambda[s];
 	for (unsigned short int i = 0; i < n; i++) {
+		Asettled[0][i] = true;
 		IloExpr eq(env);
 		model.add(Lambda_impu[i]);
 		obj += v[pow(2, i) - 1] * Lambda_impu[i];
@@ -726,7 +726,7 @@ void DP_sg(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> &v, 
 		eq += Lambda[s];
 		bal_eq[i] = eq;
 		balanced[i] = (bal_eq[i] == 0);
-		
+
 	}
 	model.add(balanced);
 	IloConstraint pos = (pos_eq == 1);
@@ -769,20 +769,20 @@ void DP_sg(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> &v, 
 	}
 	double xS = 0;
 	while (rank < n)
-		iteration_sg(unsettled, settled, s, n, A, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
+		iteration_sg(unsettled, Asettled, s, n, A, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
 	env.end();
-	if (disp) {
-		cout << "Settled coalitions:" << endl;
-		for (unsigned short int i = 0; i < n; i++)
-			cout << settled[i] + 1 << " at " << settled_values[i] << endl;
-	}
+	//if (disp) {
+	//	cout << "Settled coalitions:" << endl;
+	//	for (unsigned short int i = 0; i < n; i++)
+	//		cout << settled[i] + 1 << " at " << settled_values[i] << endl;
+	//}
 	IloEnv sol_env;
 	IloModel sol_model(sol_env);
 	IloNumVarArray X(sol_env, n, -IloInfinity, IloInfinity);
 	for (unsigned short int i = 0; i < n; i++) {
 		IloExpr p(sol_env);
 		for (unsigned short int j = 0; j < n; j++) {
-			if (A[settled[i]][j])
+			if (Asettled[i][j])
 				p += X[j];
 		}
 		IloConstraint q = (p == settled_values[i]);
@@ -808,12 +808,12 @@ void DP_sg(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> &v, 
 	cout << "Pivots needed: " << piv << endl;
 }
 
-void iteration_sg(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned int &s, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
+void iteration_sg(vector<bool> &unsettled, vector<vector<bool>> &Asettled, unsigned int &s, unsigned short int &n, vector<vector<bool>> &A, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
 	for (unsigned int i = 0; i < s; i++) {
 		if (unsettled[i]) {
 			if (u[i] > prec) {
 				if (binrank(Arref, J, A[i], n)) {
-					settled[rank] = i;
+					Asettled[rank] = A[i];
 					settled_values[rank] = v[i] - epsi;
 					rank++;
 					if (disp)
@@ -841,7 +841,7 @@ void iteration_sg(vector<bool> &unsettled, vector<unsigned int> &settled, unsign
 			if (u_impu[i] > prec) {
 				if (binrank(Arref, J, A[pow(2, i) - 1], n)) {
 					unsettled_p[i] = false;
-					settled[rank] = pow(2, i) - 1;
+					Asettled[rank] = A[pow(2, i) - 1];
 					settled_values[rank] = v[pow(2, i) - 1];
 					rank++;
 					if (disp)
@@ -879,7 +879,7 @@ void iteration_sg(vector<bool> &unsettled, vector<unsigned int> &settled, unsign
 			}
 		}
 	}
-	
+
 	vector<bool> T(s, false);
 	vector<unsigned int> T_coord(0, 0);
 	unsigned int t_size = 0;
@@ -925,7 +925,7 @@ void iteration_sg(vector<bool> &unsettled, vector<unsigned int> &settled, unsign
 		Atight2[i] = A[T2_coord[i]];
 	vector<bool> U(t_size, true);
 	vector<bool> U2(t2_size, true);
-	subroutine_sg(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, settled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
+	subroutine_sg(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
 	if (disp) {
 		cout << endl << "   ---===   SUBROUTINE FINISHED   ===---   " << endl << endl;
 		cout << "MIN TIGHT SET FOUND!" << endl;
@@ -937,10 +937,10 @@ void iteration_sg(vector<bool> &unsettled, vector<unsigned int> &settled, unsign
 	}
 	if (rank == n)
 		return;
-	
+
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	if (!nlsu){
+	if (!nlsu) {
 		for (unsigned int i = 0; i < s; i++) {
 			if (unsettled[i]) {
 				if (!(binrank(Arref, J, A[i], n))) {
@@ -1028,8 +1028,7 @@ void DP_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &
 	vector<bool>J(n, true);
 	J[0] = false;
 	unsigned short int rank = 1;
-	vector<unsigned int> settled(n, 0);
-	settled[0] = s;
+	vector<vector<bool>> Asettled(n, vector<bool>(n, 0));
 	vector <double> settled_values(n, 0);
 	settled_values[0] = v[s];
 	vector<double> u(s + 1, 0);
@@ -1047,6 +1046,7 @@ void DP_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &
 	model.add(Lambda[s]);
 	obj = v[s] * Lambda[s];
 	for (unsigned short int i = 0; i < n; i++) {
+		Asettled[0][i] = true;
 		IloExpr eq(env);
 		model.add(Lambda_impu[i]);
 		obj += v[pow(2, i) - 1] * Lambda_impu[i];
@@ -1064,7 +1064,7 @@ void DP_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &
 		eq += Lambda[s];
 		bal_eq[i] = eq;
 		balanced[i] = (bal_eq[i] == 0);
-		
+
 	}
 	model.add(balanced);
 	IloConstraint pos = (pos_eq == 1);
@@ -1107,21 +1107,20 @@ void DP_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &
 	}
 	double xS = 0;
 	while (rank < n)
-		iteration_mem(unsettled, settled, s, n, a, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
+		iteration_mem(unsettled, Asettled, s, n, a, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
 	env.end();
-	if (disp) {
-		cout << "Settled coalitions:" << endl;
-		for (unsigned short int i = 0; i < n; i++)
-			cout << settled[i] + 1 << " at " << settled_values[i] << endl;
-	}
+	//if (disp) {
+	//	cout << "Settled coalitions:" << endl;
+	//	for (unsigned short int i = 0; i < n; i++)
+	//		cout << settled[i] + 1 << " at " << settled_values[i] << endl;
+	//}
 	IloEnv sol_env;
 	IloModel sol_model(sol_env);
 	IloNumVarArray X(sol_env, n, -IloInfinity, IloInfinity);
 	for (unsigned short int i = 0; i < n; i++) {
 		IloExpr p(sol_env);
 		for (unsigned short int j = 0; j < n; j++) {
-			de2bi([settled[i]], a, n);
-			if (a[j])
+			if (Asettled[i][j])
 				p += X[j];
 		}
 		IloConstraint q = (p == settled_values[i]);
@@ -1147,13 +1146,13 @@ void DP_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &
 	cout << "Pivots needed: " << piv << endl;
 }
 
-void iteration_mem(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned int &s, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
+void iteration_mem(vector<bool> &unsettled, vector<vector<bool>> &Asettled, unsigned int &s, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<double> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
 	for (unsigned int i = 0; i < s; i++) {
 		if (unsettled[i]) {
 			if (u[i] > prec) {
 				de2bi(i, a, n);
 				if (binrank(Arref, J, a, n)) {
-					settled[rank] = i;
+					Asettled[rank] = a;
 					settled_values[rank] = v[i] - epsi;
 					rank++;
 					if (disp)
@@ -1184,7 +1183,7 @@ void iteration_mem(vector<bool> &unsettled, vector<unsigned int> &settled, unsig
 				a[i] = true;
 				if (binrank(Arref, J, a, n)) {
 					unsettled_p[i] = false;
-					settled[rank] = pow(2, i) - 1;
+					Asettled[rank] = a;
 					settled_values[rank] = v[pow(2, i) - 1];
 					rank++;
 					if (disp)
@@ -1223,7 +1222,7 @@ void iteration_mem(vector<bool> &unsettled, vector<unsigned int> &settled, unsig
 			}
 		}
 	}
-	
+
 	vector<bool> T(s, false);
 	vector<unsigned int> T_coord(0, 0);
 	unsigned int t_size = 0;
@@ -1270,7 +1269,7 @@ void iteration_mem(vector<bool> &unsettled, vector<unsigned int> &settled, unsig
 		de2bi(T2_coord[i], Atight2[i], n);
 	vector<bool> U(t_size, true);
 	vector<bool> U2(t2_size, true);
-	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, settled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
+	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
 	if (disp) {
 		cout << endl << "   ---===   SUBROUTINE FINISHED   ===---   " << endl << endl;
 		cout << "MIN TIGHT SET FOUND!" << endl;
@@ -1282,10 +1281,10 @@ void iteration_mem(vector<bool> &unsettled, vector<unsigned int> &settled, unsig
 	}
 	if (rank == n)
 		return;
-	
+
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	if (!nlsu){
+	if (!nlsu) {
 		for (unsigned int i = 0; i < s; i++) {
 			if (unsettled[i]) {
 				de2bi(i, a, n);
@@ -1374,8 +1373,7 @@ void DP_sg_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> 
 	vector<bool>J(n, true);
 	J[0] = false;
 	unsigned short int rank = 1;
-	vector<unsigned int> settled(n, 0);
-	settled[0] = s;
+	vector<vector<bool>> Asettled(n, vector<bool>(n, 0));
 	vector <double> settled_values(n, 0);
 	settled_values[0] = v[s];
 	vector<double> u(s + 1, 0);
@@ -1393,6 +1391,7 @@ void DP_sg_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> 
 	model.add(Lambda[s]);
 	obj = v[s] * Lambda[s];
 	for (unsigned short int i = 0; i < n; i++) {
+		Asettled[0][i] = true;
 		IloExpr eq(env);
 		model.add(Lambda_impu[i]);
 		obj += v[pow(2, i) - 1] * Lambda_impu[i];
@@ -1410,7 +1409,7 @@ void DP_sg_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> 
 		eq += Lambda[s];
 		bal_eq[i] = eq;
 		balanced[i] = (bal_eq[i] == 0);
-		
+
 	}
 	model.add(balanced);
 	IloConstraint pos = (pos_eq == 1);
@@ -1453,21 +1452,20 @@ void DP_sg_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> 
 	}
 	double xS = 0;
 	while (rank < n)
-		iteration_sg_mem(unsettled, settled, s, n, a, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
+		iteration_sg_mem(unsettled, Asettled, s, n, a, x, v, epsi, prec, Arref, J, rank, disp, model, Lambda, obj, lp, env, u, OBJ, pos_eq, pos, balanced, bal_eq, iter, piv, unsettled_p, Lambda_impu, u_impu, singleton_bounds, settled_values, xS, sr, nlsu);
 	env.end();
-	if (disp) {
-		cout << "Settled coalitions:" << endl;
-		for (unsigned short int i = 0; i < n; i++)
-			cout << settled[i] + 1 << " at " << settled_values[i] << endl;
-	}
+	//if (disp) {
+	//	cout << "Settled coalitions:" << endl;
+	//	for (unsigned short int i = 0; i < n; i++)
+	//		cout << settled[i] + 1 << " at " << settled_values[i] << endl;
+	//}
 	IloEnv sol_env;
 	IloModel sol_model(sol_env);
 	IloNumVarArray X(sol_env, n, -IloInfinity, IloInfinity);
 	for (unsigned short int i = 0; i < n; i++) {
 		IloExpr p(sol_env);
 		for (unsigned short int j = 0; j < n; j++) {
-			de2bi([settled[i]], a, n);
-			if (a[j])
+			if (Asettled[i][j])
 				p += X[j];
 		}
 		IloConstraint q = (p == settled_values[i]);
@@ -1493,13 +1491,13 @@ void DP_sg_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<bool> 
 	cout << "Pivots needed: " << piv << endl;
 }
 
-void iteration_sg_mem(vector<bool> &unsettled, vector<unsigned int> &settled, unsigned int &s, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
+void iteration_sg_mem(vector<bool> &unsettled, vector<vector<bool>> &Asettled, unsigned int &s, unsigned short int &n, vector<bool> &a, vector<double> &x, vector<bool> &v, double &epsi, double &prec, vector<vector<double>> &Arref, vector<bool> &J, unsigned short int &rank, bool &disp, IloModel &model, IloNumVarArray &Lambda, IloExpr &obj, IloCplex &lp, IloEnv &env, vector<double>&u, IloObjective &OBJ, IloExpr &pos_eq, IloConstraint &pos, IloRangeArray &balanced, IloExprArray &bal_eq, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, IloNumVarArray &Lambda_impu, vector<double> &u_impu, vector<double> &singleton_bounds, vector<double> &settled_values, double &xS, unsigned int &sr, bool &nlsu) {
 	for (unsigned int i = 0; i < s; i++) {
 		if (unsettled[i]) {
 			if (u[i] > prec) {
 				de2bi(i, a, n);
 				if (binrank(Arref, J, a, n)) {
-					settled[rank] = i;
+					Asettled[rank] = a;
 					settled_values[rank] = v[i] - epsi;
 					rank++;
 					if (disp)
@@ -1530,7 +1528,7 @@ void iteration_sg_mem(vector<bool> &unsettled, vector<unsigned int> &settled, un
 				a[i] = true;
 				if (binrank(Arref, J, a, n)) {
 					unsettled_p[i] = false;
-					settled[rank] = pow(2, i) - 1;
+					Asettled[rank] = a;
 					settled_values[rank] = v[pow(2, i) - 1];
 					rank++;
 					if (disp)
@@ -1569,7 +1567,7 @@ void iteration_sg_mem(vector<bool> &unsettled, vector<unsigned int> &settled, un
 			}
 		}
 	}
-	
+
 	vector<bool> T(s, false);
 	vector<unsigned int> T_coord(0, 0);
 	unsigned int t_size = 0;
@@ -1616,7 +1614,7 @@ void iteration_sg_mem(vector<bool> &unsettled, vector<unsigned int> &settled, un
 		de2bi(T2_coord[i], Atight2[i], n);
 	vector<bool> U(t_size, true);
 	vector<bool> U2(t2_size, true);
-	subroutine_sg(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, settled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
+	subroutine_sg(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, bal_eq, unsettled_p);
 	if (disp) {
 		cout << endl << "   ---===   SUBROUTINE FINISHED   ===---   " << endl << endl;
 		cout << "MIN TIGHT SET FOUND!" << endl;
@@ -1628,10 +1626,10 @@ void iteration_sg_mem(vector<bool> &unsettled, vector<unsigned int> &settled, un
 	}
 	if (rank == n)
 		return;
-	
+
 	if (disp)
 		cout << "Rank increased to: " << rank << endl;
-	if (!nlsu){
+	if (!nlsu) {
 		for (unsigned int i = 0; i < s; i++) {
 			if (unsettled[i]) {
 				de2bi(i, a, n);
@@ -1704,156 +1702,8 @@ void iteration_sg_mem(vector<bool> &unsettled, vector<unsigned int> &settled, un
 		cout << endl << "   ---===   " << iter << "-TH LP SOLVED   ===---   " << endl << endl;
 	}
 }
-	for (unsigned int i = 0; i < s; i++) {
-		if (unsettled[i]) {
-			if (u[i] > prec) {
-				de2bi(i, a, n);
-				if (binrank(Arref, J, a, n)) {
-					settled[rank] = i;
-					settled_values[rank] = v[i] - epsi;
-					rank++;
-					if (disp)
-						cout << "Rank increased to " << rank << " with " << i + 1 << " getting settled." << endl;
-					if (rank == n) {
-						if (disp)
-							cout << "Rank condition satisfied!" << endl;
-						return;
-					}
-					unsettled[i] = false;
-					obj -= epsi*Lambda[i];
-					pos_eq -= Lambda[i];
-					rowechform(Arref, J, a, n, rank);
-				}
-				else {
-					unsettled[i] = false;
-					pos_eq -= Lambda[i];
-					obj -= epsi * Lambda[i];
-				}
-			}
-		}
-	}
-	for (unsigned short int i = 0; i < n; i++) {
-		if (unsettled_p[i]) {
-			if (u_impu[i] > prec) {
-				unsigned int idx = pow(2, i) - 1;
-				de2bi(idx, a, n);
-				if (binrank(Arref, J, a, n)) {
-					unsettled_p[i] = false;
-					settled[rank] = pow(2, i) - 1;
-					settled_values[rank] = v[pow(2, i) - 1];
-					rank++;
-					if (disp)
-						cout << "Rank increased to " << rank << " with " << pow(2, i) << " (and " << s - pow(2, i) + 1 << ") getting settled." << endl;
-					if (rank == n) {
-						if (disp)
-							cout << "Rank condition satisfied!" << endl;
-						return;
-					}
-					if (unsettled[pow(2, i) - 1]) {
-						unsettled[pow(2, i) - 1] = false;
-						for (unsigned short int j = 0; j < n; j++) {
-							if (a[j])
-								bal_eq[j] -= Lambda[pow(2, i) - 1];
-						}
-						pos_eq -= Lambda[pow(2, i) - 1];
-						obj -= v[pow(2, i) - 1] * Lambda[pow(2, i) - 1];
-					}
-					if (unsettled[s - pow(2, i)]) {
-						unsettled[s - pow(2, i)] = false;
-						for (unsigned short int j = 0; j < n; j++) {
-							if (a[j])
-								bal_eq[j] -= Lambda[s - pow(2, i)];
-						}
-						pos_eq -= Lambda[s - pow(2, i)];
-						obj -= v[s - pow(2, i)] * Lambda[s - pow(2, i)];
-					}
-					rowechform(Arref, J, a, n, rank);
-				}
-				else {
-					unsettled_p[i] = false;
-					if (disp)
-						cout << pow(2, i) << " and " << s - pow(2, i) + 1 << " got settled without rank increase." << endl;
-				}
-			}
-		}
-	}
-	if (disp)
-		cout << "Rank increased to: " << rank << endl;
-	if (!nlsu){
-		for (unsigned int i = 0; i < s; i++) {
-			if (unsettled[i]) {
-				de2bi(i, a, n);
-				if (!(binrank(Arref, J, a, n))) {
-					unsettled[i] = false;
-					for (unsigned short int j = 0; j < n; j++) {
-						if (a[j])
-							bal_eq[j] -= Lambda[i];
-					}
-					pos_eq -= Lambda[i];
-					obj -= v[i] * Lambda[i];
-					if (unsettled[s - 1 - i]) {
-						unsigned int idx = s - 1 - i;
-						de2bi(idx, a, n);
-						unsettled[s - 1 - i] = false;
-						for (unsigned short int j = 0; j < n; j++) {
-							if (a[j])
-								bal_eq[j] -= Lambda[s - 1 - i];
-						}
-						pos_eq -= Lambda[s - 1 - i];
-						obj -= v[s - 1 - i] * Lambda[s - 1 - i];
-					}
-				}
-			}
-		}
-	}
-	for (unsigned short int i = 0; i < n; i++) {
-		if (unsettled_p[i] == true && unsettled[pow(2, i) - 1] == false) {
-			bal_eq[i] -= Lambda_impu[i];
-			obj -= singleton_bounds[i] * Lambda_impu[i];
-			unsettled_p[i] = false;
-		}
-		model.remove(balanced[i]);
-		balanced[i] = (bal_eq[i] == 0);
-		model.add(balanced[i]);
-	}
-	model.remove(pos);
-	pos = (pos_eq == 1);
-	model.add(pos);
-	model.remove(OBJ);
-	OBJ = IloMaximize(env, obj);
-	model.add(OBJ);
-	if (disp)
-		cout << endl << "   ---===   SOLVING THE " << iter + 1 << "-TH LP   ===---   " << endl << endl;
-	lp.solve();
-	piv += lp.getNiterations();
-	iter++;
-	for (unsigned int i = 0; i < s + 1; i++)
-		u[i] = lp.getValue(Lambda[i]);
-	for (unsigned int i = 0; i < n; i++)
-		u_impu[i] = lp.getValue(Lambda_impu[i]);
-	epsi = lp.getObjValue();
-	if (disp) {
-		cout << "Non-zero balancing weights (least core):" << endl;
-		for (unsigned short int i = 0; i < s + 1; i++) {
-			if (u[i] != 0)
-				cout << "u[" << i + 1 << "]=" << u[i] << endl;
-		}
-		cout << "With u_impu:" << endl;
-		for (unsigned short int i = 0; i < n; i++) {
-			if (u_impu[i] != 0)
-				cout << "u_impu[" << i + 1 << "]=" << u_impu[i] << endl;
-		}
-		for (unsigned short int i = 0; i < n; i++)
-			x[i] = lp.getDual(balanced[i]);
-		cout << "New solution:" << endl;
-		for (unsigned short int i = 0; i < n; i++)
-			cout << x[i] << endl;
-		cout << "Epsilon: " << epsi << endl;
-		cout << endl << "   ---===   " << iter << "-TH LP SOLVED   ===---   " << endl << endl;
-	}
-}
 
-void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, vector<vector<double>> &Arref, vector<bool> &J, double &prec, unsigned short int &n, unsigned int &t_size, unsigned short int &t2_size, unsigned short int &rank, bool &disp, vector<unsigned int> &settled, unsigned int &sr, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <bool> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, IloExprArray &bal_eq, vector<bool> &unsettled_p) {
+void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, vector<vector<double>> &Arref, vector<bool> &J, double &prec, unsigned short int &n, unsigned int &t_size, unsigned short int &t2_size, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sr, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <bool> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, IloExprArray &bal_eq, vector<bool> &unsettled_p) {
 	unsigned int sumt = 0;
 	vector<bool> t(t_size, false);
 	unsigned short int sumt2 = 0;
@@ -1875,12 +1725,12 @@ void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight
 		for (unsigned int j = 0; j < t_size; j++) {
 			if (Atight[j][i] == true)
 				eq += lambda[j];
-			if (i == 0){
+			if (i == 0) {
 				sr_pos_eq += lambda[j];
 				sr_obj += lambda[j];
 			}
-			if (j < rank && A[settled[j]][i] == true)
-				p += lambda[j + t_size + t2_size];
+			if (j < rank && Asettled[j][i] == true)
+				eq += lambda[j + t_size + t2_size];
 		}
 		for (unsigned int j = 0; j < t2_size; j++) {
 			if (Atight2[j][i] == true)
@@ -1890,7 +1740,7 @@ void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight
 		}
 		if (rank > t_size) {
 			for (unsigned short int j = t_size; j < rank; j++) {
-				if (A[settled[j]][i] == true)
+				if (Asettled[j][i] == true)
 					eq += lambda[j + t_size + t2_size];
 			}
 		}
@@ -1919,7 +1769,7 @@ void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight
 	}
 	unsigned int i;
 	while (feas) {
-		subr_upd_sg(Arref, J, i, sr_pos_eq, n, prec, U, U2, sumt, sumt2, t, t2, Atight, Atight2, t_size, t2_size, SR, lambda, rank, disp, settled, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, unsettled_p, sr_bal_eq, lambdi, bal_eq);
+		subr_upd_sg(Arref, J, i, sr_pos_eq, n, prec, U, U2, sumt, sumt2, t, t2, Atight, Atight2, t_size, t2_size, SR, lambda, rank, disp, Asettled, settled_values, unsettled, T_coord, s, epsi, v, T2_coord, Lambda, obj, pos_eq, T2_coord_p, unsettled_p, sr_bal_eq, lambdi, bal_eq, sr_obj);
 		if (rank == n)
 			return;
 		else {
@@ -1931,7 +1781,7 @@ void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight
 						t[i] = true;
 						sr_pos_eq -= lambda[i];
 						sr_obj -= lambda[i];
-						for (unsigned short int j = 0; j < n; j++){
+						for (unsigned short int j = 0; j < n; j++) {
 							if (Atight[i][j])
 								sr_bal_eq[j] -= lambda[i];
 						}
@@ -1992,7 +1842,7 @@ void subroutine_sg(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight
 	sr_env.end();
 }
 
-void subr_upd_sg(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, IloExpr &sr_pos_eq, unsigned short int &n, double &prec, vector<bool>&U, vector<bool>&U2, unsigned int &sumt, unsigned short int &sumt2, vector<bool> &t, vector<bool> &t2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, unsigned int &t_size, unsigned short int &t2_size, IloCplex &SR, IloNumVarArray &lambda, unsigned short int &rank, bool &disp, vector<unsigned int> &settled, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <bool> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, vector<bool> &unsettled_p, IloExprArray &sr_bal_eq, vector<double> &lambdi, IloExprArray &bal_eq) {
+void subr_upd_sg(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, IloExpr &sr_pos_eq, unsigned short int &n, double &prec, vector<bool>&U, vector<bool>&U2, unsigned int &sumt, unsigned short int &sumt2, vector<bool> &t, vector<bool> &t2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, unsigned int &t_size, unsigned short int &t2_size, IloCplex &SR, IloNumVarArray &lambda, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, vector <double> &settled_values, vector<bool> &unsettled, vector<unsigned int> &T_coord, unsigned int &s, double &epsi, vector <bool> &v, vector<unsigned int> &T2_coord, IloNumVarArray &Lambda, IloExpr &obj, IloExpr &pos_eq, vector<unsigned short int> &T2_coord_p, vector<bool> &unsettled_p, IloExprArray &sr_bal_eq, vector<double> &lambdi, IloExprArray &bal_eq, IloExpr &sr_obj) {
 	i = 0;
 	while (i < t_size && sumt < t_size) {
 		if (t[i] == false && lambdi[i] > prec) {
@@ -2002,7 +1852,7 @@ void subr_upd_sg(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, 
 			sr_obj -= lambda[i];
 			sumt++;
 			if (binrank(Arref, J, Atight[i], n)) {
-				settled[rank] = T_coord[i];
+				Asettled[rank] = Atight[i];
 				settled_values[rank] = v[T_coord[i]] - epsi;
 				if (disp)
 					cout << "Rank increased to " << rank + 1 << " with " << T_coord[i] + 1 << " (and " << s - T_coord[i] << ") getting settled." << endl;
@@ -2021,7 +1871,7 @@ void subr_upd_sg(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, 
 				pos_eq -= Lambda[T_coord[i]];
 			}
 			else {
-				for (unsigned short int j = 0; j < n; j++){
+				for (unsigned short int j = 0; j < n; j++) {
 					if (Atight[i][j])
 						sr_bal_eq[j] -= lambda[i];
 				}
@@ -2043,7 +1893,7 @@ void subr_upd_sg(vector<vector<double>>&Arref, vector<bool>&J, unsigned int &i, 
 			sumt2++;
 			sr_obj -= lambda[i + t_size];
 			if (binrank(Arref, J, Atight2[i], n)) {
-				settled[rank] = T2_coord[i];
+				Asettled[rank] = Atight2[i];
 				settled_values[rank] = v[T2_coord[i]];
 				if (disp)
 					cout << "Rank increased to " << rank + 1 << " with " << T2_coord[i] + 1 << " (and " << s - T2_coord[i] << ") getting settled." << endl;
