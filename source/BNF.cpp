@@ -6,7 +6,7 @@
 *             of cooperative games
 *
 *    @author Marton Benedek
-*    @version 1.0 18/12/2018
+*    @version 1.1 16/07/2019
 *
 *    This program is free software: you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -27,145 +27,116 @@
 #include "gen_game.h"
 
 int main() {
-	double t_0 = cpuTime();
 	unsigned short int n = 0;
+	unsigned short int type = 0;
+	unsigned int seed = 0;
+	bool disp = false;
 	bool memo = false;
-	bool nolinspeedup = false;
-	ifstream inp2;
-	inp2.open("input.txt");
-	inp2 >> n >> memo >> nolinspeedup;
-	inp2.close();
-	vector<unsigned short int> list(0, 0);
-	unsigned short int good = 0;
-	unsigned short int bad = 0;
-	//unsigned short int type = 0;
-	for (unsigned short int type = 1; type < 5; type++) {
-		for (unsigned short int inst = 1; inst < 51; inst++) {
-			unsigned int seed = 0;
-			bool disp = false;
-			ifstream inp;
-			//cout << "Reading the input...";
-			//inp.open("input.txt");
-			inp.open("C:\\Users\\Marton\\Dropbox\\soton\\C++\\Nucleolus\\office\\test\\MBagainandagain\\results" + to_string(type) + "n" + to_string(n) + "j" + to_string(inst) + ".txt");
-			//inp >> n >> type >> seed >> disp >> memo >> nolinspeedup;
-			unsigned short int it = 0; double aux = 0.0;
-			inp >> seed; inp >> aux; inp >> it;
-			inp.close();
-			//cout << "done!" << endl;
-			if (seed == 0)
-				seed = GetTickCount();
-			srand(seed);
-			unsigned int s = pow(2, n) - 2;
-			vector<double> x(n, 0);
-			vector<double> singleton_bounds(n, 0);
-			double impu = 0;
-			double prec = pow(10, -6);
-			vector<double> excess(s, 0);
-			vector<bool> unsettled(s + 1, true);
-			unsettled[s] = false;
-			unsigned short int iter = 0;
-			unsigned int piv = 0;
-			unsigned int sr = 0;
-			double t = 0;
-			if (type == 3 || type == 5) {
-				//cout << "Generating game...";
-				vector<bool> v(s + 1, 0);
-				if (type == 3)
-					type3(v, s, n);
-				else if (type == 5)
-					type5(v, s, n);
-				//cout << "done!" << endl;
-				//cout << "Running BNF..." << endl;
-				double t1 = cpuTime();
-				for (unsigned short int i = 0; i < n; i++) {
-					singleton_bounds[i] = v[pow(2, i) - 1];
-					impu += singleton_bounds[i];
-				}
-				x = singleton_bounds;
-				for (unsigned short int i = 0; i < n; i++)
-					x[i] += (v[s] - impu) / n;
-				if (memo) {
-					vector<bool> a(n, false);
-					excess_init_sg_mem(excess, unsettled, a, x, v, s, n);
-					BNF_mem(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, a, t1, singleton_bounds, nolinspeedup);
-				}
-				else {
-					vector<vector<bool>> A(s + 1, vector<bool>(n, false));
-					A_mx(A, n, s);
-					excess_init_sg(excess, unsettled, A, x, v, s, n);
-					BNF(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, A, t1, singleton_bounds, nolinspeedup);
-				}
-			}
-			else {
-				vector<double> v(s + 1, 0);
-				if (type == 0) {
-					cout << "Loading game...";
-					inp.open("v.txt");
-					for (unsigned int i = 0; i < s + 1; i++)
-						inp >> v[i];
-					inp.close();
-					cout << "done!" << endl;
-				}
-				else {
-					//cout << "Generating game...";
-					if (type == 1)
-						type1(v, s, n);
-					else if (type == 2)
-						type2(v, s, n);
-					else if (type == 4)
-						type4(v, s, n);
-					//cout << "done!" << endl;
-				}
-				//cout << "Running BNF..." << endl;
-				double t1 = cpuTime();
-				for (unsigned short int i = 0; i < n; i++) {
-					singleton_bounds[i] = v[pow(2, i) - 1];
-					impu += singleton_bounds[i];
-				}
-				x = singleton_bounds;
-				for (unsigned short int i = 0; i < n; i++)
-					x[i] += (v[s] - impu) / n;
-				if (memo) {
-					vector<bool> a(n, false);
-					excess_init_mem(excess, unsettled, a, x, v, s, n);
-					BNF_mem(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, a, t1, singleton_bounds, nolinspeedup);
-				}
-				else {
-					vector<vector<bool>> A(s + 1, vector<bool>(n, false));
-					A_mx(A, n, s);
-					excess_init(excess, unsettled, A, x, v, s, n);
-					BNF(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, A, t1, singleton_bounds, nolinspeedup);
-				}
-			}
-			if (it < iter)
-				good++;
-			if (it > iter)
-				bad++;
-			//cout << "type: " << type << "; inst: " << inst << "; it: " << it << "; iter: " << iter << endl;
+	bool nlsu = false;
+	ifstream inp;
+	cout << "Reading the input...";
+	inp.open("input.txt");
+	inp >> n >> type >> seed >> disp >> memo >> nlsu;
+	inp.close();
+	cout << "done!" << endl;
+	if (seed == 0)
+		seed = GetTickCount();
+	srand(seed);
+	unsigned int s = pow(2, n) - 2;
+	vector<double> x(n, 0);
+	vector<double> singleton_bounds(n, 0);
+	double impu = 0;
+	double prec = pow(10, -6);
+	vector<double> excess(s, 0);
+	vector<bool> unsettled(s + 1, true);
+	unsettled[s] = false;
+	unsigned short int iter = 0;
+	unsigned int piv = 0;
+	double t = 0;
+	if (type == 3 || type == 5) {
+		cout << "Generating game...";
+		vector<bool> v(s + 1, 0);
+		if (type == 3)
+			type3(v, s, n);
+		else if (type == 5)
+			type5(v, s, n);
+		cout << "done!" << endl;
+		cout << "Running BNF..." << endl;
+		double t1 = cpuTime();
+		for (unsigned short int i = 0; i < n; i++) {
+			singleton_bounds[i] = v[pow(2, i) - 1];
+			impu += singleton_bounds[i];
 		}
-		cout << "good: " << good << "; bad: " << bad << endl;
-		good = 0;
-		bad = 0;
+		x = singleton_bounds;
+		for (unsigned short int i = 0; i < n; i++)
+			x[i] += (v[s] - impu) / n;
+		if (memo) {
+			vector<bool> a(n, false);
+			excess_init_sg_mem(excess, unsettled, a, x, v, s, n);
+			BNF_mem(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, a, t1, singleton_bounds, nlsu);
+		}
+		else {
+			vector<vector<bool>> A(s + 1, vector<bool>(n, false));
+			A_mx(A, n, s);
+			excess_init_sg(excess, unsettled, A, x, v, s, n);
+			BNF(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, A, t1, singleton_bounds, nlsu);
+		}
 	}
-	//ofstream res;
-	//res.open("results.txt", ofstream::out | ofstream::trunc);
-	//res << "good: " << good << "; bad: " << endl;
-	//res.close();
-	//for (unsigned int i = 0; i < list.size(); i++)
-		//res << list[i] << endl;
-	/*res << seed << endl << t << endl << iter << endl << piv << endl << sr << endl;
+	else {
+		vector<double> v(s + 1, 0);
+		if (type == 0) {
+			cout << "Loading game...";
+			inp.open("v.txt");
+			for (unsigned int i = 0; i < s + 1; i++)
+				inp >> v[i];
+			inp.close();
+			cout << "done!" << endl;
+		}
+		else {
+			cout << "Generating game...";
+			if (type == 1)
+				type1(v, s, n);
+			else if (type == 2)
+				type2(v, s, n);
+			else if (type == 4)
+				type4(v, s, n);
+			cout << "done!" << endl;
+		}
+		cout << "Running BNF..." << endl;
+		double t1 = cpuTime();
+		for (unsigned short int i = 0; i < n; i++) {
+			singleton_bounds[i] = v[pow(2, i) - 1];
+			impu += singleton_bounds[i];
+		}
+		x = singleton_bounds;
+		for (unsigned short int i = 0; i < n; i++)
+			x[i] += (v[s] - impu) / n;
+		if (memo) {
+			vector<bool> a(n, false);
+			excess_init_mem(excess, unsettled, a, x, v, s, n);
+			BNF_mem(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, a, t1, singleton_bounds, nlsu);
+		}
+		else {
+			vector<vector<bool>> A(s + 1, vector<bool>(n, false));
+			A_mx(A, n, s);
+			excess_init(excess, unsettled, A, x, v, s, n);
+			BNF(disp, n, s, excess, prec, unsettled, iter, piv, sr, t, x, A, t1, singleton_bounds, nlsu);
+		}
+	}
+	ofstream res;
+	res.open("results.txt", ofstream::out | ofstream::trunc);
+	res << seed << endl << t << endl << iter << endl << piv << endl << sr << endl;
 	for (unsigned int i = 0; i < n; i++)
-	res << fixed << setprecision(17) << x[i] << endl;
+		res << fixed << setprecision(17) << x[i] << endl;
 	res.close();
 	cout << "Press 0 then Enter to quit: ";
 	double quit;
 	cin >> quit;
-	cin.get();*/
-	cout << "Running time: " << cpuTime() - t_0 << endl;
+	cin.get();
 	return 0;
 }
 
-void BNF(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &excess, double &prec, vector<bool> &unsettled, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, vector<vector<bool>> &A, double &t1, vector<double> &singleton_bounds, bool &nolinspeedup) {
+void BNF(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &excess, double &prec, vector<bool> &unsettled, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, vector<vector<bool>> &A, double &t1, vector<double> &singleton_bounds, bool &nlsu) {
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -184,19 +155,19 @@ void BNF(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &exc
 	double epsi = 0;
 	double epsi_old = -DBL_MAX;
 	while (rank < n)
-		pivot(epsi, s, excess, prec, n, A, Arref, J, unsettled, rank, d, x, disp, Asettled, piv, sr, iter, unsettled_p, singleton_bounds, epsi_old, nolinspeedup);
+		pivot(epsi, s, excess, prec, n, A, Arref, J, unsettled, rank, d, x, disp, Asettled, piv, sr, iter, unsettled_p, singleton_bounds, epsi_old, nlsu);
 	t = cpuTime() - t1;
-	//cout << "BNF finished!" << endl;
-	//cout << "The nucleolus solution:" << endl;
-	//for (unsigned short int i = 0; i < n; i++)
-	//	cout << x[i] << endl;
-	//cout << "Time needed: " << t << " seconds" << endl;
-	//cout << "Iterations needed: " << iter << endl;
-	//cout << "Pivots needed: " << piv << endl;
-	//cout << "Subroutine solves needed: " << sr << endl;
+	cout << "BNF finished!" << endl;
+	cout << "The nucleolus solution:" << endl;
+	for (unsigned short int i = 0; i < n; i++)
+		cout << x[i] << endl;
+	cout << "Time needed: " << t << " seconds" << endl;
+	cout << "Iterations needed: " << iter << endl;
+	cout << "Pivots needed: " << piv << endl;
+	cout << "Subroutine solves needed: " << sr << endl;
 }
 
-void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<vector<bool>>&A, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned int &piv, unsigned int &sr_count, unsigned short int &iter, vector<bool> &unsettled_p, vector<double> &singleton_bounds, double &epsi_old, bool &nolinspeedup) {
+void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<vector<bool>>&A, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned int &piv, unsigned int &sr_count, unsigned short int &iter, vector<bool> &unsettled_p, vector<double> &singleton_bounds, double &epsi_old, bool &nlsu) {
 	vec_min_uns(epsi, excess, unsettled, s);
 	if (disp)
 		cout << "Epsilon: " << epsi << endl;
@@ -218,7 +189,7 @@ void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, 
 	vector<bool> U2(t2_size, true);
 	bool u = true;
 	bool settled = false;
-	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr_count, u, s, T_coord, T2_coord, unsettled, epsi_old, epsi, unsettled_p, settled, nolinspeedup);
+	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr_count, u, s, T_coord, T2_coord, unsettled, epsi_old, epsi, unsettled_p, settled, nlsu);
 	if (disp)
 		cout << endl << "  --==  subroutine finished  ==--  " << endl << endl;
 	if (settled)
@@ -268,7 +239,7 @@ void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, 
 			cout << endl << "  --==  minimal tight set found!  ==--  " << endl << endl;
 		if (rank == n)
 			return;
-		if (!nolinspeedup) {
+		if (!nlsu) {
 			for (unsigned int i = 0; i < s; i++) {
 				if (unsettled[i]) {
 					if (!(binrank(Arref, J, A[i], n))) {
@@ -286,7 +257,7 @@ void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, 
 		cout << endl << "   ---===   ITERATION " << iter + 1 << "   ===---   " << endl << endl;
 }
 
-void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, vector<vector<double>> &Arref, vector<bool> &J, double &prec, unsigned short int &n, unsigned int &tight_size, unsigned short int &tight2_size, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sr_count, bool &u, unsigned int &s, vector<unsigned int> &T_coord, vector<unsigned int> &T2_coord, vector<bool> &unsettled, double &epsi_old, double &epsi, vector<bool> &unsettled_p, bool &settled, bool &nolinspeedup) {
+void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, vector<vector<bool>> &Atight2, vector<vector<double>> &Arref, vector<bool> &J, double &prec, unsigned short int &n, unsigned int &tight_size, unsigned short int &tight2_size, unsigned short int &rank, bool &disp, vector<vector<bool>> &Asettled, unsigned int &sr_count, bool &u, unsigned int &s, vector<unsigned int> &T_coord, vector<unsigned int> &T2_coord, vector<bool> &unsettled, double &epsi_old, double &epsi, vector<bool> &unsettled_p, bool &settled, bool &nlsu) {
 	unsigned int sumt = 0;
 	vector<bool> t(tight_size, false);
 	unsigned int sumt2 = 0;
@@ -338,7 +309,7 @@ void subroutine(vector<bool>&U, vector<bool>&U2, vector<vector<bool>> &Atight, v
 	bool feas = sr.solve();
 	if (disp)
 		cout << "subroutine feasibility: " << feas << endl;
-	if (feas && nolinspeedup)
+	if (feas && nlsu)
 		settled = true;
 	sr_count++;
 	unsigned int i;
@@ -592,7 +563,7 @@ void step(vector<bool> &T, vector<bool> &T2, vector<bool> &unsettled, vector<boo
 	}
 }
 
-void BNF_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &excess, double &prec, vector<bool> &unsettled, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, vector<bool> &a, double &t1, vector<double> &singleton_bounds, bool &nolinspeedup) {
+void BNF_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> &excess, double &prec, vector<bool> &unsettled, unsigned short int &iter, unsigned int &piv, unsigned int &sr, double &t, vector<double> &x, vector<bool> &a, double &t1, vector<double> &singleton_bounds, bool &nlsu) {
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -610,19 +581,19 @@ void BNF_mem(bool &disp, unsigned short int &n, unsigned int &s, vector<double> 
 	double epsi = 0;
 	double epsi_old = -DBL_MAX;
 	while (rank < n)
-		pivot_mem(epsi, s, excess, prec, n, a, Arref, J, unsettled, rank, d, x, disp, Asettled, piv, sr, iter, unsettled_p, singleton_bounds, epsi_old, nolinspeedup);
+		pivot_mem(epsi, s, excess, prec, n, a, Arref, J, unsettled, rank, d, x, disp, Asettled, piv, sr, iter, unsettled_p, singleton_bounds, epsi_old, nlsu);
 	t = cpuTime() - t1;
-	/*cout << "BNF finished!" << endl;
+	cout << "BNF finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
 	for (unsigned short int i = 0; i < n; i++)
 		cout << x[i] << endl;
 	cout << "Time needed: " << t << " seconds" << endl;
 	cout << "Iterations needed: " << iter << endl;
 	cout << "Pivots needed: " << piv << endl;
-	cout << "Subroutine solves needed: " << sr << endl;*/
+	cout << "Subroutine solves needed: " << sr << endl;
 }
 
-void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<bool>&a, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned int &piv, unsigned int &sr_count, unsigned short int &iter, vector<bool> &unsettled_p, vector<double> &singleton_bounds, double &epsi_old, bool &nolinspeedup) {
+void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<bool>&a, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned int &piv, unsigned int &sr_count, unsigned short int &iter, vector<bool> &unsettled_p, vector<double> &singleton_bounds, double &epsi_old, bool &nlsu) {
 	vec_min_uns(epsi, excess, unsettled, s);
 	if (disp)
 		cout << "Epsilon: " << epsi << endl;
@@ -644,7 +615,7 @@ void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &pr
 	vector<bool> U2(t2_size, true);
 	bool u = true;
 	bool settled = false;
-	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr_count, u, s, T_coord, T2_coord, unsettled, epsi_old, epsi, unsettled_p, settled, nolinspeedup);
+	subroutine(U, U2, Atight, Atight2, Arref, J, prec, n, t_size, t2_size, rank, disp, Asettled, sr_count, u, s, T_coord, T2_coord, unsettled, epsi_old, epsi, unsettled_p, settled, nlsu);
 	if (disp)
 		cout << endl << "   ---===   SUBROUTINE FINISHED   ===---   " << endl << endl;
 	if (settled)
@@ -694,7 +665,7 @@ void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &pr
 			cout << "Min tight set found! Rank increased to: " << rank << endl;
 		if (rank == n)
 			return;
-		if (!nolinspeedup) {
+		if (!nlsu) {
 			for (unsigned int i = 0; i < s; i++) {
 				if (unsettled[i]) {
 					de2bi(i, a, n);
