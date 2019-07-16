@@ -7,7 +7,7 @@
 *             https://www.researchgate.net/publication/265080719
 *
 *    @author Marton Benedek
-*    @version 1.0 18/12/2018
+*    @version 1.1 16/07/2019
 *
 *    This program is free software: you can redistribute it and/or modify
 *    it under the terms of the GNU General Public License as published by
@@ -27,16 +27,17 @@
 #include "DK.h"
 #include "gen_game.h"
 
-int mainzy() {
+int main() {
 	unsigned short int n = 0;
 	unsigned short int type = 0;
 	unsigned int seed = 0;
 	bool disp = false;
 	bool memo = false;
+	bool nlsu = false;
 	ifstream inp;
 	cout << "Reading the input...";
 	inp.open("input.txt");
-	inp >> n >> type >> seed >> disp >> memo;
+	inp >> n >> type >> seed >> disp >> memo >> nlsu;
 	inp.close();
 	cout << "done!" << endl;
 	if (seed == 0)
@@ -73,13 +74,13 @@ int mainzy() {
 		if (memo) {
 			vector<bool> a(n, false);
 			excess_init_sg_mem(excess, unsettled, a, x, v, s, n);
-			DK_mem(disp, n, s, prec, singleton_bounds, unsettled, a, iter, piv, t, x, excess, t1);
+			DK_mem(disp, n, s, prec, singleton_bounds, unsettled, a, iter, piv, t, x, excess, t1, nlsu);
 		}
 		else {
 			vector<vector<bool>> A(s + 1, vector<bool>(n, false));
 			A_mx(A, n, s);
 			excess_init_sg(excess, unsettled, A, x, v, s, n);
-			DK(disp, n, s, prec, singleton_bounds, unsettled, A, iter, piv, t, x, excess, t1);
+			DK(disp, n, s, prec, singleton_bounds, unsettled, A, iter, piv, t, x, excess, t1, nlsu);
 		}
 	}
 	else {
@@ -114,13 +115,13 @@ int mainzy() {
 		if (memo) {
 			vector<bool> a(n, false);
 			excess_init_mem(excess, unsettled, a, x, v, s, n);
-			DK_mem(disp, n, s, prec, singleton_bounds, unsettled, a, iter, piv, t, x, excess, t1);
+			DK_mem(disp, n, s, prec, singleton_bounds, unsettled, a, iter, piv, t, x, excess, t1, nlsu);
 		}
 		else {
 			vector<vector<bool>> A(s + 1, vector<bool>(n, false));
 			A_mx(A, n, s);
 			excess_init(excess, unsettled, A, x, v, s, n);
-			DK(disp, n, s, prec, singleton_bounds, unsettled, A, iter, piv, t, x, excess, t1);
+			DK(disp, n, s, prec, singleton_bounds, unsettled, A, iter, piv, t, x, excess, t1, nlsu);
 		}
 	}
 	ofstream res;
@@ -136,7 +137,7 @@ int mainzy() {
 	return 0;
 }
 
-void DK(bool &disp, unsigned short int &n, unsigned int &s, double &prec, vector<double> &singleton_bounds, vector<bool> &unsettled, vector<vector<bool>> &A, unsigned short int &iter, unsigned int &piv, double &t, vector<double> &x, vector<double> &excess, double &t1) {
+void DK(bool &disp, unsigned short int &n, unsigned int &s, double &prec, vector<double> &singleton_bounds, vector<bool> &unsettled, vector<vector<bool>> &A, unsigned short int &iter, unsigned int &piv, double &t, vector<double> &x, vector<double> &excess, double &t1, bool &nlsu) {
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -153,7 +154,7 @@ void DK(bool &disp, unsigned short int &n, unsigned int &s, double &prec, vector
 	vector<double> d(n, 0);
 	double epsi = 0;
 	while (rank < n)
-		iteration(epsi, s, excess, prec, n, A, Arref, J, unsettled, rank, d, x, disp, Asettled, iter, piv, unsettled_p, singleton_bounds);
+		iteration(epsi, s, excess, prec, n, A, Arref, J, unsettled, rank, d, x, disp, Asettled, iter, piv, unsettled_p, singleton_bounds, nlsu);
 	t = cpuTime() - t1;
 	cout << "DK finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
@@ -165,7 +166,7 @@ void DK(bool &disp, unsigned short int &n, unsigned int &s, double &prec, vector
 
 }
 
-void iteration(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<vector<bool>>&A, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds) {
+void iteration(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<vector<bool>>&A, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds, bool &nlsu) {
 	vec_min_uns(epsi, excess, unsettled, s);
 	if (disp)
 		cout << "Epsilon: " << epsi << endl;
@@ -191,10 +192,10 @@ void iteration(double &epsi, unsigned int &s, vector<double> &excess, double &pr
 	vector<vector<bool>> Atight2(0, vector<bool>(n, false));
 	vector<unsigned int> T2_coord(0, 0);
 	while (pivo)
-		pivot(epsi, s, excess, prec, n, A, Arref, J, unsettled, rank, d, x, disp, Asettled, pivo, t_size, Atight, T, T_coord, iter, piv, unsettled_p, singleton_bounds, Atight2, t2_size, T2, T2_coord);
+		pivot(epsi, s, excess, prec, n, A, Arref, J, unsettled, rank, d, x, disp, Asettled, pivo, t_size, Atight, T, T_coord, iter, piv, unsettled_p, singleton_bounds, Atight2, t2_size, T2, T2_coord, nlsu);
 }
 
-void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<vector<bool>>&A, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, bool &pivo, unsigned int &t_size, vector<vector<bool>> &Atight, vector<bool> &T, vector<unsigned int> &T_coord, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds, vector<vector<bool>> &Atight2, unsigned short int &t2_size, vector<bool> &T2, vector<unsigned int> &T2_coord) {
+void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<vector<bool>>&A, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, bool &pivo, unsigned int &t_size, vector<vector<bool>> &Atight, vector<bool> &T, vector<unsigned int> &T_coord, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds, vector<vector<bool>> &Atight2, unsigned short int &t2_size, vector<bool> &T2, vector<unsigned int> &T2_coord, bool &nlsu) {
 	IloEnv env;
 	IloModel model(env);
 	IloNumVarArray lambda(env, t_size + t2_size + rank, -IloInfinity, IloInfinity);
@@ -375,11 +376,13 @@ void pivot(double &epsi, unsigned int &s, vector<double> &excess, double &prec, 
 					}
 				}
 			}
-			for (unsigned int i = 0; i < s; i++) {
-				if (unsettled[i]) {
-					if (!(binrank(Arref, J, A[i], n))) {
-						unsettled[i] = false;
-						unsettled[s - 1 - i] = false;
+			if (!nlsu){
+				for (unsigned int i = 0; i < s; i++) {
+					if (unsettled[i]) {
+						if (!(binrank(Arref, J, A[i], n))) {
+							unsettled[i] = false;
+							unsettled[s - 1 - i] = false;
+						}
 					}
 				}
 			}
@@ -552,7 +555,7 @@ void stepDK(vector<bool> &T, vector<bool> &unsettled, unsigned int &s, vector<ve
 	}
 }
 
-void DK_mem(bool &disp, unsigned short int &n, unsigned int &s, double &prec, vector<double> &singleton_bounds, vector<bool> &unsettled, vector<bool> &a, unsigned short int &iter, unsigned int &piv, double &t, vector<double> &x, vector<double> &excess, double &t1) {
+void DK_mem(bool &disp, unsigned short int &n, unsigned int &s, double &prec, vector<double> &singleton_bounds, vector<bool> &unsettled, vector<bool> &a, unsigned short int &iter, unsigned int &piv, double &t, vector<double> &x, vector<double> &excess, double &t1, bool &nlsu) {
 	vector<bool> unsettled_p(n, true);
 	vector<vector<double>> Arref(n, vector<double>(n, 0));
 	Arref[0] = vector<double>(n, 1);
@@ -569,7 +572,7 @@ void DK_mem(bool &disp, unsigned short int &n, unsigned int &s, double &prec, ve
 	vector<double> d(n, 0);
 	double epsi = 0;
 	while (rank < n)
-		iteration_mem(epsi, s, excess, prec, n, a, Arref, J, unsettled, rank, d, x, disp, Asettled, iter, piv, unsettled_p, singleton_bounds);
+		iteration_mem(epsi, s, excess, prec, n, a, Arref, J, unsettled, rank, d, x, disp, Asettled, iter, piv, unsettled_p, singleton_bounds, nlsu);
 	t = cpuTime() - t1;
 	cout << "DK finished!" << endl;
 	cout << "The nucleolus solution:" << endl;
@@ -580,7 +583,7 @@ void DK_mem(bool &disp, unsigned short int &n, unsigned int &s, double &prec, ve
 	cout << "Pivots needed: " << piv << endl;
 }
 
-void iteration_mem(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<bool>&a, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds) {
+void iteration_mem(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<bool>&a, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds, bool &nlsu) {
 	vec_min_uns(epsi, excess, unsettled, s);
 	if (disp)
 		cout << "Epsilon: " << epsi << endl;
@@ -606,10 +609,10 @@ void iteration_mem(double &epsi, unsigned int &s, vector<double> &excess, double
 	vector<vector<bool>> Atight2(0, vector<bool>(n, false));
 	vector<unsigned int> T2_coord(0, 0);
 	while (pivo)
-		pivot_mem(epsi, s, excess, prec, n, a, Arref, J, unsettled, rank, d, x, disp, Asettled, pivo, t_size, Atight, T, T_coord, iter, piv, unsettled_p, singleton_bounds, Atight2, t2_size, T2, T2_coord);
+		pivot_mem(epsi, s, excess, prec, n, a, Arref, J, unsettled, rank, d, x, disp, Asettled, pivo, t_size, Atight, T, T_coord, iter, piv, unsettled_p, singleton_bounds, Atight2, t2_size, T2, T2_coord, nlsu);
 }
 
-void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<bool>&a, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, bool &pivo, unsigned int &t_size, vector<vector<bool>> &Atight, vector<bool> &T, vector<unsigned int> &T_coord, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds, vector<vector<bool>> &Atight2, unsigned short int &t2_size, vector<bool> &T2, vector<unsigned int> &T2_coord) {
+void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &prec, unsigned short int &n, vector<bool>&a, vector<vector<double>>&Arref, vector<bool> &J, vector<bool> &unsettled, unsigned short int &rank, vector<double> &d, vector<double> &x, bool &disp, vector<vector<bool>> &Asettled, bool &pivo, unsigned int &t_size, vector<vector<bool>> &Atight, vector<bool> &T, vector<unsigned int> &T_coord, unsigned short int &iter, unsigned int &piv, vector<bool> &unsettled_p, vector<double> &singleton_bounds, vector<vector<bool>> &Atight2, unsigned short int &t2_size, vector<bool> &T2, vector<unsigned int> &T2_coord, bool &nlsu) {
 	IloEnv env;
 	IloModel model(env);
 	IloNumVarArray lambda(env, t_size + t2_size + rank, -IloInfinity, IloInfinity);
@@ -793,12 +796,14 @@ void pivot_mem(double &epsi, unsigned int &s, vector<double> &excess, double &pr
 			}
 			if (disp)
 				cout << "Rank increased to: " << rank << endl;
-			for (unsigned int i = 0; i < s; i++) {
-				if (unsettled[i]) {
-					de2bi(i, a, n);
-					if (!(binrank(Arref, J, a, n))) {
-						unsettled[i] = false;
-						unsettled[s - 1 - i] = false;
+			if (!nlsu){
+				for (unsigned int i = 0; i < s; i++) {
+					if (unsettled[i]) {
+						de2bi(i, a, n);
+						if (!(binrank(Arref, J, a, n))) {
+							unsettled[i] = false;
+							unsettled[s - 1 - i] = false;
+						}
 					}
 				}
 			}
