@@ -113,7 +113,7 @@ void SP(bool &disp, unsigned short int &n, vector<double> &v, unsigned short int
 	double impu = 0;
 	for (unsigned short int i = 0; i < n; i++){
 		singleton_bounds[i] = v[pow(2, i) - 1];
-		impu += singleton_bounds[i]
+		impu += singleton_bounds[i];
 	}
 	for (unsigned short int i = 0; i < n; i++)
 		x[i] += (v[s] - impu) / n;
