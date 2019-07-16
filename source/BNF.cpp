@@ -52,6 +52,7 @@ int main() {
 	unsettled[s] = false;
 	unsigned short int iter = 0;
 	unsigned int piv = 0;
+	unsigned int sr = 0;
 	double t = 0;
 	if (type == 3 || type == 5) {
 		cout << "Generating game...";
