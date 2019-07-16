@@ -1,6 +1,6 @@
 # Nucleolus
 
-version 1.0 18/12/2018
+version 1.1 16/07/2018
 
 Various algorithms finding and verifying the nucleolus of cooperative games.
 
@@ -16,6 +16,9 @@ For each algorithm covered there is an executable and the source as well.
  * DK: [Derks and Kuipers (1997) - Implementing the simplex method for computing the prenucleolus of transferable utility games](https://www.researchgate.net/publication/265080719)
  * SP: the primal sequence of [Solymosi (1993) - On computing the nucleolus of cooperative games](https://www.researchgate.net/publication/318017147)
  * SD: the dual sequence of [Solymosi (1993) - On computing the nucleolus of cooperative games](https://www.researchgate.net/publication/318017147)
+ * PD: primal-dual algorithm from Benedek et al. (2019) - Trade-offs in the computation of the nucleolus (forthcoming)
+ * DP: dual-primal algorithm from Benedek et al. (2019) - Trade-offs in the computation of the nucleolus (forthcoming)
+ 
 
 ### Executables
 
@@ -25,20 +28,24 @@ All executables are obtained by compiling the corresponding source (see below) u
  * DK.exe
  * SP.exe
  * SD.exe
+ * PD.exe
+ * DP.exe
 
 ### Sources
 
 Each of the codes below requires common.cpp, common.h, gen_game.cpp and gen_game.h
  * BNF.cpp, BNF.h
- * DK.cpp, DK. h
- * SP.cpp, SP. h
+ * DK.cpp, DK.h
+ * SP.cpp, SP.h
  * SD.cpp, SD.h
+ * PD.cpp, PD.h
+ * DP.cpp, DP.h
 
 ### Inputs
 
 input.txt: containing variables
 ```
-n, type, seed, disp, memo
+n, type, seed, disp, memo, nlsu
 ```
 separated by linebreaks
  * n: integer, the number of players
@@ -46,6 +53,7 @@ separated by linebreaks
  * seed: integer, seed for randomization when generating certain types of games
  * disp: boolean, 1 to display information while running (default 0)
  * memo: boolean, 1 to switch to memory-saving implementation (default 0); as a rough guide, using 16 Gb memory only memo=1 works with ~n>28 for most games
+ * nlsu: boolean, 1 to switch off linear speed-up, that removes all coalitions in the linear span of the settled coalitions
 
 v.txt: being read only if type=0
  * containing coalitional values of a game separated by linebreaks
@@ -188,6 +196,7 @@ While the "input.txt" should consist of
 0
 1
 0
+0
 ```
 if we would like to get information about the progress of the chosen algorithm (the seed can be arbitrary if type=0). Then we can run "BNF.exe" and obtain the solution
 ```
@@ -197,12 +206,13 @@ if we would like to get information about the progress of the chosen algorithm (
 ```
 If we save this in "sol.txt" we can verify the solution using one of the verification algorithms.
 
-However if we were to find the nucleolus of a 15-player type 2 game using seed 480453, without displaying information but with limiting memory usage we should change input.txt to
+However if we were to find the nucleolus of a 15-player type 2 game using seed 480453, without displaying information but with limiting memory usage and without linear speed-up we should change input.txt to
 ```
 15
 2
 480453
 0
+1
 1
 ```
 
