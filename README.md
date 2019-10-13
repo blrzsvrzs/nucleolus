@@ -1,6 +1,6 @@
 # Nucleolus
 
-version 1.1 16/07/2018
+version 1.2 16/08/2019
 
 Various algorithms finding and verifying the nucleolus of cooperative games.
 
@@ -18,6 +18,7 @@ For each algorithm covered there is an executable and the source as well.
  * SD: the dual sequence of [Solymosi (1993) - On computing the nucleolus of cooperative games](https://www.researchgate.net/publication/318017147)
  * PD: primal-dual algorithm from Benedek et al. (2019) - Trade-offs in the computation of the nucleolus (forthcoming)
  * DP: dual-primal algorithm from Benedek et al. (2019) - Trade-offs in the computation of the nucleolus (forthcoming)
+ * PRA: [Potters et al. (1996) - Computing the Nucleolus by Solving a Prolonged Simplex Algorithm] (https://pubsonline.informs.org/doi/abs/10.1287/moor.21.3.757)
  
 
 ### Executables
@@ -30,6 +31,7 @@ All executables are obtained by compiling the corresponding source (see below) u
  * SD.exe
  * PD.exe
  * DP.exe
+ * PRA.exe
 
 ### Sources
 
@@ -40,6 +42,7 @@ Each of the codes below requires common.cpp, common.h, gen_game.cpp and gen_game
  * SD.cpp, SD.h
  * PD.cpp, PD.h
  * DP.cpp, DP.h
+ * PRA.cpp, PRA.h
 
 ### Inputs
 
@@ -52,8 +55,8 @@ separated by linebreaks
  * type: integer between 0 and 7; type=0 reads the game from "v.txt" (see below), type>0 generates certain types of games (see below)
  * seed: integer, seed for randomization when generating certain types of games
  * disp: boolean, 1 to display information while running (default 0)
- * memo: boolean, 1 to switch to memory-saving implementation (default 0); as a rough guide, using 16 Gb memory only memo=1 works with ~n>28 for most games
- * nlsu: boolean, 1 to switch off linear speed-up, that removes all coalitions in the linear span of the settled coalitions
+ * memo: boolean, 1 to switch to memory-saving implementation (default 0); as a rough guide, using 16 Gb memory only memo=1 works with ~n>28 for most games (not applicable for PRA)
+ * nlsu: boolean, 1 to switch off linear speed-up, that removes all coalitions in the linear span of the settled coalitions (not applicable for PRA)
 
 v.txt: being read only if type=0
  * containing coalitional values of a game separated by linebreaks
@@ -82,7 +85,7 @@ separated by linebreaks
  * time: computation time needed in seconds
  * iter: number of iterations needed
  * piv: number of pivots needed
- * sr: number of LPs solved in the subroutines (only for BNF and SP)
+ * sr: number of LPs solved in the subroutines (only for BNF, SP, PD and DP)
  * x: the nucleolus of the game (in n lines)
 
 ## Verifying the nucleolus
